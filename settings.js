@@ -580,7 +580,17 @@ const THEME_CONFIG = {
         buttonBorder: '0 solid rgba(0, 0, 0, 0.1)',
         discordLink: '#3479b7',
         githubLink: '#1e722a',
-        robloxLink: '#c13ad9'
+        robloxLink: '#c13ad9',
+        surface: 'rgba(255, 255, 255, 0.95)',
+        surfaceBorder: 'rgba(15, 23, 42, 0.08)',
+        mutedText: 'rgba(55, 65, 81, 0.75)',
+        accent: '#c13ad9',
+        cardShadow: '0 16px 32px rgba(15, 23, 42, 0.12)',
+        cardShadowHover: '0 22px 44px rgba(15, 23, 42, 0.18)',
+        controlBg: 'rgba(244, 246, 249, 0.9)',
+        controlBorder: 'rgba(148, 163, 184, 0.35)',
+        statusBorder: 'rgba(148, 163, 184, 0.25)',
+        featureBg: 'rgba(255, 255, 255, 0.95)',
     },
     dark: {
         content: 'rgb(transparent)',
@@ -596,7 +606,17 @@ const THEME_CONFIG = {
         buttonBorder: '0px solid rgba(255, 255, 255, 0.1)',
         discordLink: '#7289da',
         githubLink: '#2dba4e',
-        robloxLink: '#c13ad9'
+        robloxLink: '#c13ad9',
+        surface: 'rgba(32, 34, 40, 0.92)',
+        surfaceBorder: 'rgba(148, 163, 184, 0.18)',
+        mutedText: 'rgba(203, 213, 225, 0.72)',
+        accent: '#c13ad9',
+        cardShadow: '0 20px 42px rgba(3, 7, 18, 0.6)',
+        cardShadowHover: '0 26px 52px rgba(3, 7, 18, 0.7)',
+        controlBg: 'rgba(45, 48, 51, 0.88)',
+        controlBorder: 'rgba(148, 163, 184, 0.24)',
+        statusBorder: 'rgba(148, 163, 184, 0.28)',
+        featureBg: 'rgba(39, 41, 48, 0.92)',
     }
 };
 
@@ -894,6 +914,21 @@ function updateThemeStyles_settingsPage(theme) {
 function updateThemeStyles_rovalraPage(theme) {
     const isDarkMode = theme === 'dark';
     const themeColors = THEME_CONFIG[theme] || THEME_CONFIG.light;
+
+    const root = document.documentElement;
+    const fallbackSurface = isDarkMode ? 'rgba(32, 34, 40, 0.92)' : 'rgba(255, 255, 255, 0.95)';
+    root.style.setProperty('--rovalra-surface-bg', themeColors.surface || fallbackSurface);
+    root.style.setProperty('--rovalra-surface-border', themeColors.surfaceBorder || (isDarkMode ? 'rgba(148, 163, 184, 0.18)' : 'rgba(15, 23, 42, 0.08)'));
+    root.style.setProperty('--rovalra-text-color', themeColors.text);
+    root.style.setProperty('--rovalra-header-color', themeColors.header);
+    root.style.setProperty('--rovalra-muted-text', themeColors.mutedText || (isDarkMode ? 'rgba(203, 213, 225, 0.72)' : 'rgba(55, 65, 81, 0.75)'));
+    root.style.setProperty('--rovalra-accent', themeColors.accent || themeColors.robloxLink || '#c13ad9');
+    root.style.setProperty('--rovalra-card-shadow', themeColors.cardShadow || (isDarkMode ? '0 20px 42px rgba(3, 7, 18, 0.6)' : '0 16px 32px rgba(15, 23, 42, 0.12)'));
+    root.style.setProperty('--rovalra-card-shadow-hover', themeColors.cardShadowHover || (isDarkMode ? '0 26px 52px rgba(3, 7, 18, 0.7)' : '0 22px 44px rgba(15, 23, 42, 0.18)'));
+    root.style.setProperty('--rovalra-control-bg', themeColors.controlBg || (isDarkMode ? 'rgba(45, 48, 51, 0.88)' : 'rgba(244, 246, 249, 0.9)'));
+    root.style.setProperty('--rovalra-control-border', themeColors.controlBorder || (isDarkMode ? 'rgba(148, 163, 184, 0.24)' : 'rgba(148, 163, 184, 0.35)'));
+    root.style.setProperty('--rovalra-status-border', themeColors.statusBorder || (isDarkMode ? 'rgba(148, 163, 184, 0.28)' : 'rgba(148, 163, 184, 0.25)'));
+    root.style.setProperty('--rovalra-feature-bg', themeColors.featureBg || themeColors.surface || fallbackSurface);
 
     const textColor = themeColors.text;
     const headerColor = themeColors.header;
@@ -1408,110 +1443,133 @@ const initSettings = async (settingsContent) => {
 };
 
 async function updateContent(buttonInfo, contentContainer, buttonData) {
+    clearLandingIntervals();
+
     const isDarkMode = currentTheme === 'dark';
-    const themeColors = THEME_CONFIG[currentTheme] || THEME_CONFIG.light; 
+    const themeColors = THEME_CONFIG[currentTheme] || THEME_CONFIG.light;
 
     const textColor = themeColors.text;
     const headerColor = themeColors.header;
     const discordColor = themeColors.discordLink;
     const githubColor = themeColors.githubLink;
+    const reviewLinkColor = isDarkMode ? '#42a5f5' : '#1976d2';
 
-    if (typeof buttonInfo === 'object' && buttonInfo !== null && buttonInfo.content) {
-        if (buttonInfo.text.toLowerCase() === "info" || buttonInfo.text.toLowerCase() === "credits") {
-            contentContainer.innerHTML = `
-                <div id="settings-content" style="padding: 0; background-color: transparent;">
-                    <div id="setting-section-content" style="padding: 5px;">
-                        <div id="info-credits-background-wrapper" style="padding: 15px; background-color: ${cachedThemeColors.content}; margin-bottom: 15px;">${buttonInfo.content}</div>
-                    </div>
-                </div>`;
-            contentContainer.style.backgroundColor = 'rgb(transparent)'; 
-        } else {
-            contentContainer.innerHTML = buttonInfo.content;
+    if (typeof buttonInfo === 'object' && buttonInfo !== null) {
+        let contentQueryRoot = null;
+        const lowerText = (buttonInfo.text || '').toLowerCase();
+
+        if (typeof buttonInfo.render === 'function') {
+            const renderedContent = buttonInfo.render();
+            contentContainer.innerHTML = '';
             contentContainer.style.backgroundColor = 'rgb(transparent)';
-        }
-        contentContainer.style.borderRadius = '0px';
+            contentContainer.style.borderRadius = '0px';
 
-        if (window.location.href.includes('/RoValra')) {
-            const contentQueryRoot = (buttonInfo.text.toLowerCase() === "info" || buttonInfo.text.toLowerCase() === "credits")
-                ? contentContainer.querySelector('#info-credits-background-wrapper') || contentContainer 
-                : contentContainer;
+            if (lowerText === 'info' || lowerText === 'credits') {
+                const settingsWrapper = document.createElement('div');
+                settingsWrapper.id = 'settings-content';
+                settingsWrapper.classList.add('rovalra-info-shell');
 
-            if (contentQueryRoot) {
-                setTimeout(() => {
-                    contentQueryRoot.querySelectorAll('a.rovalra-discord-link').forEach(link => {
-                        link.style.setProperty('color', discordColor, 'important');
-                        link.style.setProperty('text-decoration', 'underline', 'important');
-                        link.style.setProperty('font-weight', 'bold', 'important');
-                        link.style.setProperty('transition', 'color 0.3s ease', 'important');
+                const sectionContent = document.createElement('div');
+                sectionContent.id = 'setting-section-content';
+                sectionContent.classList.add('rovalra-settings-panel');
 
-                        link.addEventListener('mouseenter', function() {
-                            const lighterDiscordColor = lightenColor(discordColor, 0.15);
-                            this.style.setProperty('color', lighterDiscordColor, 'important');
-                        });
-                        link.addEventListener('mouseleave', function() {
-                            this.style.setProperty('color', discordColor, 'important');
-                        });
-                    });
+                const backgroundWrapper = createElementWithClass('div', ['rovalra-info-wrapper']);
+                backgroundWrapper.id = 'info-credits-background-wrapper';
 
-                    contentQueryRoot.querySelectorAll('a.rovalra-github-link').forEach(link => {
-                        link.style.setProperty('color', githubColor, 'important');
-                        link.style.setProperty('text-decoration', 'underline', 'important');
-                        link.style.setProperty('font-weight', 'bold', 'important');
-                        link.style.setProperty('transition', 'color 0.3s ease', 'important');
+                if (renderedContent instanceof Node) {
+                    backgroundWrapper.appendChild(renderedContent);
+                }
 
-                        link.addEventListener('mouseenter', function() {
-                            const lighterGithubColor = lightenColor(githubColor, 0.15);
-                            this.style.setProperty('color', lighterGithubColor, 'important');
-                        });
-                        link.addEventListener('mouseleave', function() {
-                            this.style.setProperty('color', githubColor, 'important');
-                        });
-                    });
-
-                    contentQueryRoot.querySelectorAll('a.rovalra-review-link').forEach(link => {
-                        const reviewColor = isInitiallyDark ? '#42a5f5' : '#1976d2';
-                        link.style.setProperty('color', reviewColor, 'important');
-                        link.style.setProperty('text-decoration', 'underline', 'important');
-                        link.style.setProperty('font-weight', 'bold', 'important');
-                        link.style.setProperty('transition', 'color 0.3s ease', 'important');
-
-                        link.addEventListener('mouseenter', function() {
-                            const lighterReviewColor = lightenColor(reviewColor, 0.15);
-                            this.style.setProperty('color', lighterReviewColor, 'important');
-                        });
-                        link.addEventListener('mouseleave', function() {
-                            this.style.setProperty('color', reviewColor, 'important');
-                        });
-                    });
-
-                    contentQueryRoot.querySelectorAll('div, span, li, b, p, h1, button, h2').forEach(element => {
-                        if (element.tagName === 'A' && (element.classList.contains('rovalra-discord-link') || element.classList.contains('rovalra-github-link') || element.classList.contains('rovalra-review-link'))) {
-                            return;
-                        }
-                        
-                        const computedStyle = window.getComputedStyle(element);
-                        const elementColor = computedStyle.color;
-                        
-                        if (element.tagName === 'H2') {
-                            element.style.setProperty('color', headerColor, 'important');
-                        } else if (elementColor === 'rgb(0, 0, 0)' || elementColor === 'rgb(255, 255, 255)') {
-                            element.style.setProperty('color', textColor, 'important');
-                        }
-                    });
-                }, 0);
+                sectionContent.appendChild(backgroundWrapper);
+                settingsWrapper.appendChild(sectionContent);
+                contentContainer.appendChild(settingsWrapper);
+                contentQueryRoot = backgroundWrapper;
+            } else if (renderedContent instanceof Node) {
+                contentContainer.appendChild(renderedContent);
+                contentQueryRoot = contentContainer;
             }
+        } else if (buttonInfo.content) {
+            if (lowerText === 'info' || lowerText === 'credits') {
+                contentContainer.innerHTML = `
+                    <div id="settings-content" style="padding: 0; background-color: transparent;">
+                        <div id="setting-section-content" style="padding: 5px;">
+                            <div id="info-credits-background-wrapper" style="padding: 15px; background-color: ${cachedThemeColors.content}; margin-bottom: 15px;">${buttonInfo.content}</div>
+                        </div>
+                    </div>`;
+                contentContainer.style.backgroundColor = 'rgb(transparent)';
+            } else {
+                contentContainer.innerHTML = buttonInfo.content;
+                contentContainer.style.backgroundColor = 'rgb(transparent)';
+            }
+            contentContainer.style.borderRadius = '0px';
+            contentQueryRoot = (lowerText === 'info' || lowerText === 'credits')
+                ? contentContainer.querySelector('#info-credits-background-wrapper') || contentContainer
+                : contentContainer;
         }
-    }
 
-    const rovalraHeader = document.querySelector('#react-user-account-base > h1');
-    if (rovalraHeader) {
-        rovalraHeader.style.setProperty('color', headerColor, 'important');
-    }
-    if (buttonInfo.text === "Settings") {
-        const settingSections = Object.keys(SETTINGS_CONFIG).map(sectionName => ({
-            name: SETTINGS_CONFIG[sectionName].title,
-            content: generateSettingsUI(sectionName)
-        }));
+        if (window.location.href.includes('/RoValra') && contentQueryRoot) {
+            setTimeout(() => {
+                contentQueryRoot.querySelectorAll('a.rovalra-discord-link').forEach(link => {
+                    link.style.setProperty('color', discordColor, 'important');
+                    link.style.setProperty('text-decoration', 'underline', 'important');
+                    link.style.setProperty('font-weight', 'bold', 'important');
+                    link.style.setProperty('transition', 'color 0.3s ease', 'important');
+
+                    link.addEventListener('mouseenter', function() {
+                        const lighterDiscordColor = lightenColor(discordColor, 0.15);
+                        this.style.setProperty('color', lighterDiscordColor, 'important');
+                    });
+                    link.addEventListener('mouseleave', function() {
+                        this.style.setProperty('color', discordColor, 'important');
+                    });
+                });
+
+                contentQueryRoot.querySelectorAll('a.rovalra-github-link').forEach(link => {
+                    link.style.setProperty('color', githubColor, 'important');
+                    link.style.setProperty('text-decoration', 'underline', 'important');
+                    link.style.setProperty('font-weight', 'bold', 'important');
+                    link.style.setProperty('transition', 'color 0.3s ease', 'important');
+
+                    link.addEventListener('mouseenter', function() {
+                        const lighterGithubColor = lightenColor(githubColor, 0.15);
+                        this.style.setProperty('color', lighterGithubColor, 'important');
+                    });
+                    link.addEventListener('mouseleave', function() {
+                        this.style.setProperty('color', githubColor, 'important');
+                    });
+                });
+
+                contentQueryRoot.querySelectorAll('a.rovalra-review-link').forEach(link => {
+                    link.style.setProperty('color', reviewLinkColor, 'important');
+                    link.style.setProperty('text-decoration', 'underline', 'important');
+                    link.style.setProperty('font-weight', 'bold', 'important');
+                    link.style.setProperty('transition', 'color 0.3s ease', 'important');
+
+                    link.addEventListener('mouseenter', function() {
+                        const lighterReviewColor = lightenColor(reviewLinkColor, 0.15);
+                        this.style.setProperty('color', lighterReviewColor, 'important');
+                    });
+                    link.addEventListener('mouseleave', function() {
+                        this.style.setProperty('color', reviewLinkColor, 'important');
+                    });
+                });
+
+                contentQueryRoot.querySelectorAll('div, span, li, b, p, h1, button, h2').forEach(element => {
+                    if (element.tagName === 'A' && (element.classList.contains('rovalra-discord-link') || element.classList.contains('rovalra-github-link') || element.classList.contains('rovalra-review-link'))) {
+                        return;
+                    }
+
+                    const computedStyle = window.getComputedStyle(element);
+                    const elementColor = computedStyle.color;
+
+                    if (element.tagName === 'H2') {
+                        element.style.setProperty('color', headerColor, 'important');
+                    } else if (elementColor === 'rgb(0, 0, 0)' || elementColor === 'rgb(255, 255, 255)') {
+                        element.style.setProperty('color', textColor, 'important');
+                    }
+                });
+            }, 0);
+        }
     }
 }
 
@@ -1950,91 +2008,397 @@ function lightenColor(color, percent) {
     return `rgb(${r}, ${g}, ${b})`;
 }
 
-const buttonData = [
+const featureHighlights = [
     {
-        text: "Info", content: `
-        <div style="padding: 8px;">
-        <h2 style="margin-bottom: 10px;">RoValra Infomation!</h2>
-        <p style="">RoValra is an extension that's trying to make basic quality of life features free and accessible to everyone, by making everything completely open-source.</p>
-        <div style="margin-top: 5px;">
-            <p style="">This is possible by running almost everything locally.</p>
-            <div style="margin-top: 5px;">
-            <p style="">If you have any feature suggestions please let me know in my Discord server or via GitHub</p>
-            <div style="margin-top: 5px;">
-            <p style="">If you like this extension please consider <a href="https://chromewebstore.google.com/detail/rovalra-roblox-improved/njcickgebhnpgmoodjdgohkclfplejli/reviews" target="_blank" class="rovalra-review-link">leaving a review</a>, it helps a lot ❤️</p>
-            </div>
-        <div style="margin-top: 10px;">
-                <a href="https://discord.gg/GHd5cSKJRk" target="_blank" class="rovalra-discord-link">Discord Server</a>
-                <a href="https://github.com/NotValra/RoValra" target="_blank" class="rovalra-github-link">
-                Github Repo
-                <img src="${chrome.runtime.getURL("Assets/icon-128.png")}" style="width: 20px; height: 20px; margin-right: 0px; vertical-align: middle;" />
-                </a>
-                <a href="https://www.roblox.com/games/9676908657/Gamepasses#!/store" target="_blank" class="rovalra-roblox-link">Support Me on Roblox</a>
-        </div>
-    </div>
-    `},
+        title: 'Privacy-first architecture',
+        description: 'RoValra does almost all of its heavy lifting locally so your Roblox habits stay on your machine.',
+    },
     {
-        text: "Credits", content: `
-            <div style="padding: 8px;">
-                <h2 style="margin-bottom: 10px;">RoValra Credits!</h2>
-                <ul style="margin-top: 10px; padding-left: 0px;">
-                    <li style="margin-bottom: 8px; list-style-type: disc; margin-left: 20px;">
-                        Thanks to <b style="font-weight: bold;">Frames</b> for somehow getting the Roblox sales and revenue on some items
-                        <a href="https://github.com/workframes/roblox-owner-counts" target="_blank" class="rovalra-github-link">GitHub Repo</a>
-                    </li>
-                    <li style="margin-bottom: 8px; list-style-type: disc; margin-left: 20px;">
-                        Thanks to <b style="font-weight: bold;">Julia</b> for making a repo with all Roblox server ips which I now use to get the regions
-                        <a href="https://github.com/RoSeal-Extension/Top-Secret-Thing" target="_blank" class="rovalra-github-link">GitHub Repo</a>
-                    </li>
-                    <li style="margin-bottom: 8px; list-style-type: disc; margin-left: 20px;">
-                         Thanks to <b style="font-weight: bold;">Aspect</b> for helping me out here and there when I had a bunch of dumb questions or problems.
-                         <a href="https://github.com/Aspectise" target="_blank" class="rovalra-github-link">GitHub</a>
-                    </li>
-                    <li style="margin-bottom: 8px; list-style-type: disc; margin-left: 20px;">
-                         Thanks to <b style="font-weight: bold;">l5se</b> for allowing me to use their open source region selector as a template for my extension.
-                    </li>
-
-                    <li style="margin-bottom: 8px; list-style-type: disc; margin-left: 20px;">
-                        Thanks to <b style="font-weight: bold;">7_lz</b> for helping me a bunch when preparing for the Chrome Web Store release. They helped a ton and I'm very thankful.
-                    </li>
-                    <li style="margin-bottom: 8px; list-style-type: disc; margin-left: 20px;">
-                        Thanks to <b style="font-weight: bold;">mmfw</b> for making the screenshots on the chrome web store, and general help with UI design of the extension.
-                           </li>
-                    <li style="margin-bottom: 8px; list-style-type: disc; margin-left: 20px;">
-                        Thanks to <b style="font-weight: bold;">Coweggs</b> for coming up with the very funny name that is "RoValra" as a joke that I then ended up using.
-                           </li>
-                </ul>
-                 <div style="margin-top: 20px; border-top: 1px solid #444; padding-top: 10px;">
-                    <h2 style="margin-bottom: 5px;">Extensions</h2>
-                    <p style="margin-bottom: 10px; font-size: 16px;">Valra's personal favorite extensions</p>
-                    <ul style="margin-top: 10px; padding-left: 0px;">
-                        <li style="margin-bottom: 8px; list-style-type: disc; margin-left: 20px;">
-                            <b style="font-weight: bold;">RoSeal</b> adds so many good QoL features that I can't live without it.
-                            <a href="https://www.roseal.live/" target="_blank" class="rovalra-extension-link">Website</a>
-                        </li>
-                        <li style="margin-bottom: 8px; list-style-type: disc; margin-left: 20px;">
-                            <b style="font-weight: bold;">RoQoL</b> adds so many special features no other extension has.
-                            <a href="https://roqol.io/" target="_blank" class="rovalra-extension-link">Website</a>
-                        </li>
-                        <li style="margin-bottom: 8px; list-style-type: disc; margin-left: 20px;">
-                            <b style="font-weight: bold;">BetterBlox</b> adds back the last online, and is working on a complete rework of the Roblox website.
-                            <a href="https://betterroblox.com/" target="_blank" class="rovalra-extension-link">Website</a>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        `},
+        title: 'Powerful catalog insights',
+        description: 'Leak-driven sales numbers and revenue estimates help you plan the next limited snipe or catalog drop.',
+    },
     {
-        text: "Settings", content: `
-        <div id="settings-content" style="padding: 0; background-color: transparent;">
-            <div id="setting-section-buttons" style="display: flex; margin-bottom: 25px;">
-            </div>
-            <div id="setting-section-content" style="padding: 5px;">
-            </div>
-        </div>
-        `
+        title: 'Instant join utilities',
+        description: 'Universal user sniper, preferred join regions, and quick private server links keep your squad together.',
+    },
+    {
+        title: 'Community powered',
+        description: 'Open-source contributions keep features transparent, auditable, and easy to extend for your friends.',
     },
 ];
+
+const quickToggleShortcuts = [
+    {
+        key: 'itemSalesEnabled',
+        label: 'Catalog Sales Tracker',
+        description: 'Show experimental sales and revenue estimates on catalog items.',
+    },
+    {
+        key: 'regionSelectorEnabled',
+        label: 'Region Selector',
+        description: 'Pick a Roblox server region manually when hopping into games.',
+    },
+    {
+        key: 'PreferredRegionEnabled',
+        label: 'Preferred Join Button',
+        description: 'Add a one-click button that joins your saved region instantly.',
+    },
+    {
+        key: 'botdataEnabled',
+        label: 'Bot Activity Scanner',
+        description: 'Surface a quick signal when a game session is overloaded with bots.',
+    },
+];
+
+const statusWidgetConfig = [
+    {
+        title: 'Theme Mode',
+        computeValue: () => (currentTheme || 'auto').toUpperCase(),
+        description: 'Auto-detects your Roblox preference and re-themes the control center to match.',
+    },
+    {
+        title: 'Theme Cache Age',
+        computeValue: () => formatRelativeTime(Date.now() - themeLastFetched),
+        description: 'RoValra revalidates Roblox theme tokens in the background at most once a day.',
+    },
+    {
+        title: 'Local Time',
+        computeValue: () => new Date().toLocaleTimeString(),
+        description: 'Stay synced with group events and limited drops with a live clock.',
+        interval: 1000,
+    },
+];
+
+const creditEntries = [
+    {
+        name: 'Frames',
+        description: 'Somehow obtained Roblox sales and revenue figures for select items.',
+        linkText: 'GitHub Repo',
+        linkHref: 'https://github.com/workframes/roblox-owner-counts',
+    },
+    {
+        name: 'Julia',
+        description: 'Compiled the community list of Roblox server IPs that powers our region data.',
+        linkText: 'GitHub Repo',
+        linkHref: 'https://github.com/RoSeal-Extension/Top-Secret-Thing',
+    },
+    {
+        name: 'Aspect',
+        description: 'Answered the endless stream of extension development questions when things broke.',
+        linkText: 'GitHub',
+        linkHref: 'https://github.com/Aspectise',
+    },
+    {
+        name: 'l5se',
+        description: 'Open-sourced a region selector that inspired the first RoValra iteration.',
+    },
+    {
+        name: '7_lz',
+        description: 'Helped polish the Chrome Web Store release pipeline right before launch.',
+    },
+    {
+        name: 'mmfw',
+        description: 'Designed the Chrome Web Store screenshots and refined UI details across the extension.',
+    },
+    {
+        name: 'Coweggs',
+        description: 'Coined the ridiculously good "RoValra" name that stuck forever.',
+    },
+];
+
+const favoriteExtensions = [
+    {
+        name: 'RoSeal',
+        description: "Tons of can't-live-without quality-of-life boosts for Roblox explorers.",
+        linkHref: 'https://www.roseal.live/',
+    },
+    {
+        name: 'RoQoL',
+        description: 'One-of-a-kind features that no other Roblox extension dares to attempt.',
+        linkHref: 'https://roqol.io/',
+    },
+    {
+        name: 'BetterBlox',
+        description: 'Brings back last online and works toward a modern Roblox web experience.',
+        linkHref: 'https://betterroblox.com/',
+    },
+];
+
+let activeLandingIntervals = [];
+
+function registerLandingInterval(intervalId) {
+    if (typeof intervalId === 'number') {
+        activeLandingIntervals.push(intervalId);
+    }
+}
+
+function clearLandingIntervals() {
+    activeLandingIntervals.forEach(intervalId => clearInterval(intervalId));
+    activeLandingIntervals = [];
+}
+
+function createElementWithClass(tag, classNames = [], textContent = '') {
+    const element = document.createElement(tag);
+    if (classNames.length) {
+        element.classList.add(...classNames);
+    }
+    if (textContent) {
+        element.textContent = textContent;
+    }
+    return element;
+}
+
+function formatRelativeTime(milliseconds) {
+    if (!milliseconds || milliseconds < 0) {
+        return 'No cache yet';
+    }
+    const seconds = Math.floor(milliseconds / 1000);
+    if (seconds < 60) {
+        return `${seconds}s ago`;
+    }
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) {
+        return `${minutes}m ago`;
+    }
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) {
+        return `${hours}h ago`;
+    }
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+}
+
+function createCtaLink(label, href, className) {
+    const link = createElementWithClass('a', ['rovalra-cta-link', className]);
+    link.href = href;
+    link.target = '_blank';
+    link.rel = 'noreferrer noopener';
+    link.textContent = label;
+    return link;
+}
+
+function createHeroSection() {
+    const heroCard = createElementWithClass('div', ['rovalra-card', 'rovalra-hero-card']);
+    const heading = createElementWithClass('h2', ['rovalra-heading'], 'RoValra Information');
+    const description = createElementWithClass('p', ['rovalra-body'], "RoValra is all about giving Roblox players power tools without the paywall. It's open-source, it runs locally, and it's made for you and your crew.");
+
+    const supportBlurb = createElementWithClass('p', ['rovalra-muted'], 'Have a feature idea? Drop it in Discord or open a pull request. Reviews help massively, too!');
+    const ctaRow = createElementWithClass('div', ['rovalra-cta-row']);
+    const discordLink = createCtaLink('Discord Server', 'https://discord.gg/GHd5cSKJRk', 'rovalra-discord-link');
+    const githubLink = createCtaLink('GitHub Repo', 'https://github.com/NotValra/RoValra', 'rovalra-github-link');
+    const icon = document.createElement('img');
+    icon.src = chrome.runtime.getURL('Assets/icon-128.png');
+    icon.alt = 'RoValra Icon';
+    icon.className = 'rovalra-cta-icon';
+    githubLink.prepend(icon);
+    const robloxLink = createCtaLink('Support Me on Roblox', 'https://www.roblox.com/games/9676908657/Gamepasses#!/store', 'rovalra-roblox-link');
+    const reviewLink = createCtaLink('Leave a Review', 'https://chromewebstore.google.com/detail/rovalra-roblox-improved/njcickgebhnpgmoodjdgohkclfplejli/reviews', 'rovalra-review-link');
+
+    ctaRow.append(discordLink, githubLink, robloxLink, reviewLink);
+
+    heroCard.append(heading, description, supportBlurb, ctaRow);
+    return heroCard;
+}
+
+function createFeatureHighlightsSection() {
+    const card = createElementWithClass('div', ['rovalra-card']);
+    const header = createElementWithClass('div', ['rovalra-section-header']);
+    header.append(
+        createElementWithClass('h3', ['rovalra-subheading'], 'Feature Highlights'),
+        createElementWithClass('p', ['rovalra-muted'], 'A quick look at the upgrades that make RoValra a must-have control center for Roblox.'),
+    );
+
+    const grid = createElementWithClass('div', ['rovalra-feature-grid']);
+    featureHighlights.forEach(feature => {
+        const featureCard = createElementWithClass('div', ['rovalra-feature-card']);
+        featureCard.append(
+            createElementWithClass('h4', ['rovalra-feature-title'], feature.title),
+            createElementWithClass('p', ['rovalra-body'], feature.description),
+        );
+        grid.appendChild(featureCard);
+    });
+
+    card.append(header, grid);
+    return card;
+}
+
+function createQuickToggleSection() {
+    const card = createElementWithClass('div', ['rovalra-card']);
+    const header = createElementWithClass('div', ['rovalra-section-header']);
+    header.append(
+        createElementWithClass('h3', ['rovalra-subheading'], 'Quick Toggles'),
+        createElementWithClass('p', ['rovalra-muted'], 'Flip the most-used upgrades without digging through every settings tab.'),
+    );
+
+    const list = createElementWithClass('div', ['rovalra-toggle-list']);
+    const toggleInputs = new Map();
+
+    quickToggleShortcuts.forEach(toggle => {
+        const item = createElementWithClass('label', ['rovalra-toggle-item']);
+        const topRow = createElementWithClass('div', ['rovalra-toggle-row']);
+        const name = createElementWithClass('span', ['rovalra-toggle-name'], toggle.label);
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.dataset.settingName = toggle.key;
+        input.className = 'rovalra-toggle-input';
+        topRow.append(name, input);
+
+        const description = createElementWithClass('span', ['rovalra-toggle-description'], toggle.description);
+        item.append(topRow, description);
+        list.appendChild(item);
+        toggleInputs.set(toggle.key, input);
+    });
+
+    const loader = typeof safeLoadSettings === 'function' ? safeLoadSettings : loadSettings;
+    if (typeof loader === 'function') {
+        loader().then(settings => {
+            if (settings) {
+                toggleInputs.forEach((input, settingKey) => {
+                    if (Object.prototype.hasOwnProperty.call(settings, settingKey)) {
+                        input.checked = Boolean(settings[settingKey]);
+                    }
+                });
+            }
+        }).catch(error => {
+            console.error('Failed to load settings for quick toggle batch', error);
+        });
+    }
+
+    card.append(header, list);
+    return card;
+}
+
+function createStatusWidgetsSection() {
+    const card = createElementWithClass('div', ['rovalra-card']);
+    const header = createElementWithClass('div', ['rovalra-section-header']);
+    header.append(
+        createElementWithClass('h3', ['rovalra-subheading'], 'Live Status'),
+        createElementWithClass('p', ['rovalra-muted'], 'At-a-glance signals that your RoValra hub is synced and ready.'),
+    );
+
+    const widgetRow = createElementWithClass('div', ['rovalra-status-grid']);
+
+    statusWidgetConfig.forEach(widget => {
+        const widgetCard = createElementWithClass('div', ['rovalra-status-card']);
+        const title = createElementWithClass('span', ['rovalra-status-title'], widget.title);
+        const value = createElementWithClass('span', ['rovalra-status-value']);
+        const description = createElementWithClass('span', ['rovalra-status-description'], widget.description);
+
+        const updateValue = () => {
+            try {
+                value.textContent = widget.computeValue();
+            } catch (error) {
+                console.error('Failed to compute widget value', widget.title, error);
+                value.textContent = 'Unavailable';
+            }
+        };
+
+        updateValue();
+
+        if (widget.interval) {
+            const intervalId = setInterval(updateValue, widget.interval);
+            registerLandingInterval(intervalId);
+        }
+
+        widgetCard.append(title, value, description);
+        widgetRow.appendChild(widgetCard);
+    });
+
+    card.append(header, widgetRow);
+    return card;
+}
+
+function createInfoContent() {
+    const container = createElementWithClass('div', ['rovalra-landing-content']);
+    container.append(
+        createHeroSection(),
+        createFeatureHighlightsSection(),
+        createQuickToggleSection(),
+        createStatusWidgetsSection(),
+    );
+    return container;
+}
+
+function createCreditsContent() {
+    const container = createElementWithClass('div', ['rovalra-landing-content']);
+
+    const peopleCard = createElementWithClass('div', ['rovalra-card']);
+    peopleCard.append(
+        createElementWithClass('h2', ['rovalra-heading'], 'RoValra Credits'),
+        createElementWithClass('p', ['rovalra-muted'], 'A massive shout-out to the folks who make maintaining this free extension realistic.'),
+    );
+
+    const list = createElementWithClass('ul', ['rovalra-credit-list']);
+    creditEntries.forEach(entry => {
+        const listItem = createElementWithClass('li', ['rovalra-credit-item']);
+        const title = createElementWithClass('span', ['rovalra-credit-name'], entry.name);
+        const description = createElementWithClass('span', ['rovalra-credit-description'], entry.description);
+        listItem.append(title, description);
+
+        if (entry.linkHref && entry.linkText) {
+            const link = createCtaLink(entry.linkText, entry.linkHref, 'rovalra-github-link');
+            link.classList.add('rovalra-inline-link');
+            listItem.appendChild(link);
+        }
+
+        list.appendChild(listItem);
+    });
+
+    peopleCard.appendChild(list);
+
+    const extensionsCard = createElementWithClass('div', ['rovalra-card']);
+    extensionsCard.append(
+        createElementWithClass('h3', ['rovalra-subheading'], "Valra's Favorite Extensions"),
+        createElementWithClass('p', ['rovalra-muted'], 'More community-driven tools worth checking out:'),
+    );
+
+    const extensionList = createElementWithClass('ul', ['rovalra-credit-list']);
+    favoriteExtensions.forEach(extension => {
+        const item = createElementWithClass('li', ['rovalra-credit-item']);
+        item.append(
+            createElementWithClass('span', ['rovalra-credit-name'], extension.name),
+            createElementWithClass('span', ['rovalra-credit-description'], extension.description),
+        );
+        const link = createCtaLink('Website', extension.linkHref, 'rovalra-extension-link');
+        link.classList.add('rovalra-inline-link');
+        item.appendChild(link);
+        extensionList.appendChild(item);
+    });
+
+    extensionsCard.appendChild(extensionList);
+
+    container.append(peopleCard, extensionsCard);
+    return container;
+}
+
+function createSettingsContentContainer() {
+    const wrapper = createElementWithClass('div', ['rovalra-settings-shell']);
+    wrapper.id = 'settings-content';
+
+    const buttonRow = createElementWithClass('div', ['rovalra-settings-toolbar']);
+    buttonRow.id = 'setting-section-buttons';
+    const content = createElementWithClass('div', ['rovalra-settings-panel']);
+    content.id = 'setting-section-content';
+
+    wrapper.append(buttonRow, content);
+    return wrapper;
+}
+
+const buttonData = [
+    {
+        text: 'Info',
+        render: () => createInfoContent(),
+    },
+    {
+        text: 'Credits',
+        render: () => createCreditsContent(),
+    },
+    {
+        text: 'Settings',
+        render: () => createSettingsContentContainer(),
+    },
+];
+
 
 const settingSections = Object.keys(SETTINGS_CONFIG).map(sectionName => ({
     name: SETTINGS_CONFIG[sectionName].title,
